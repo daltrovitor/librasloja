@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -41,7 +41,7 @@ interface Order {
   updated_at: string
 }
 
-export default function OrdersPage() {
+function OrdersContent() {
   const router = useRouter()
   const { user, loading: authLoading, signOut } = useRequireAuth()
   const [orders, setOrders] = useState<Order[]>([])
@@ -412,5 +412,17 @@ export default function OrdersPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <OrdersContent />
+    </Suspense>
   )
 }

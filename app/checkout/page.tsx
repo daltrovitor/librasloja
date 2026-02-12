@@ -1,15 +1,15 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 import { CheckoutForm } from "@/components/ecommerce/CheckoutForm"
 import { useCart } from "@/hooks/use-shopping-cart"
 import { Loader2 } from "lucide-react"
 
-export default function CheckoutPage() {
-  const { cart, isLoading } = useCart()
+function CheckoutContent() {
+  const { cart } = useCart()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -18,18 +18,6 @@ export default function CheckoutPage() {
 
   if (!mounted) {
     return null
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <main className="flex-1 container mx-auto px-4 py-32 flex justify-center items-center">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </main>
-        <Footer />
-      </div>
-    )
   }
 
   return (
@@ -84,5 +72,17 @@ export default function CheckoutPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   )
 }

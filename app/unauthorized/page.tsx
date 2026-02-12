@@ -1,5 +1,6 @@
 "use client"
 
+import { Suspense } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
@@ -8,14 +9,14 @@ import { Button } from "@/components/ui/button"
 import { AlertTriangle, Home, ArrowLeft } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 
-export default function UnauthorizedPage() {
+function UnauthorizedContent() {
   const { user } = useAuth()
   const router = useRouter()
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-16">
         <div className="max-w-md mx-auto text-center">
           {/* Icon */}
@@ -25,7 +26,7 @@ export default function UnauthorizedPage() {
 
           {/* Title */}
           <h1 className="text-3xl font-bold mb-4">Acesso Negado</h1>
-          
+
           {/* Message */}
           <p className="text-muted-foreground mb-8">
             {user ? (
@@ -80,5 +81,17 @@ export default function UnauthorizedPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function UnauthorizedPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <UnauthorizedContent />
+    </Suspense>
   )
 }

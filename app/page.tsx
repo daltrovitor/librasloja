@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Navbar } from "@/components/navbar"
@@ -12,7 +12,7 @@ import { ArrowRight, Mail } from "lucide-react"
 import { HeroSliderSimple } from "@/components/hero-slider-simple"
 import type { Product } from "@/lib/store/types"
 
-export default function HomePage() {
+function HomeContent() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -88,9 +88,19 @@ export default function HomePage() {
         </div>
       </section>
 
-
-
       <Footer />
     </div>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }

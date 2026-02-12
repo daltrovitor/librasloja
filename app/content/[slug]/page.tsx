@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
@@ -11,7 +11,7 @@ interface ContentPageProps {
   params: Promise<{ slug: string }>
 }
 
-export default function ContentPage({ params }: ContentPageProps) {
+function ContentPageContent({ params }: ContentPageProps) {
   const [content, setContent] = useState<Content | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -83,7 +83,7 @@ export default function ContentPage({ params }: ContentPageProps) {
   return (
     <main className="bg-gradient-to-br from-background via-background to-background/95 min-h-screen">
       <Navbar />
-      
+
       {/* Hero Section (fallback to placeholder.jpg when no image) */}
       <div className="w-full h-80 md:h-96 overflow-hidden relative bg-black">
         <img
@@ -97,10 +97,10 @@ export default function ContentPage({ params }: ContentPageProps) {
       {/* Blog Container */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Main Content */}
           <article className="lg:col-span-2">
-            
+
             {/* Article Header */}
             <div className="mb-10">
               <div className="flex items-center gap-2 mb-4">
@@ -114,11 +114,11 @@ export default function ContentPage({ params }: ContentPageProps) {
                   })}
                 </time>
               </div>
-              
+
               <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 leading-tight">
                 {content.title}
               </h1>
-              
+
               {content.description && (
                 <p className="text-xl text-foreground/70 leading-relaxed font-light">
                   {content.description}
@@ -167,7 +167,7 @@ export default function ContentPage({ params }: ContentPageProps) {
           {/* Sidebar */}
           <aside className="lg:col-span-1">
             <div className="sticky top-20 space-y-8">
-              
+
               {/* Info Box */}
               <div className="bg-card border border-border rounded-lg p-6">
                 <h3 className="font-semibold text-foreground mb-4">Sobre este artigo</h3>
@@ -210,5 +210,17 @@ export default function ContentPage({ params }: ContentPageProps) {
 
       <Footer />
     </main>
+  )
+}
+
+export default function ContentPage(props: ContentPageProps) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <ContentPageContent {...props} />
+    </Suspense>
   )
 }

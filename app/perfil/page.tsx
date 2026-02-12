@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
@@ -42,7 +42,7 @@ interface Order {
   tracking_url?: string
 }
 
-export default function ProfilePage() {
+function ProfileContent() {
   const { user, signOut } = useAuth()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -236,7 +236,7 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -279,7 +279,7 @@ export default function ProfilePage() {
                       <Input
                         id="full_name"
                         value={profileData.full_name}
-                        onChange={(e) => setProfileData({...profileData, full_name: e.target.value})}
+                        onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
@@ -297,7 +297,7 @@ export default function ProfilePage() {
                     <Input
                       id="phone"
                       value={profileData.phone}
-                      onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                       placeholder="(00) 00000-0000"
                     />
                   </div>
@@ -306,7 +306,7 @@ export default function ProfilePage() {
                     <Input
                       id="avatar_url"
                       value={profileData.avatar_url}
-                      onChange={(e) => setProfileData({...profileData, avatar_url: e.target.value})}
+                      onChange={(e) => setProfileData({ ...profileData, avatar_url: e.target.value })}
                       placeholder="https://exemplo.com/avatar.jpg"
                     />
                   </div>
@@ -345,7 +345,7 @@ export default function ProfilePage() {
                         <select
                           id="address_type"
                           value={newAddress.type}
-                          onChange={(e) => setNewAddress({...newAddress, type: e.target.value as 'shipping' | 'billing'})}
+                          onChange={(e) => setNewAddress({ ...newAddress, type: e.target.value as 'shipping' | 'billing' })}
                           className="w-full p-2 border rounded-md"
                         >
                           <option value="shipping">Entrega</option>
@@ -357,7 +357,7 @@ export default function ProfilePage() {
                         <Input
                           id="address_name"
                           value={newAddress.name}
-                          onChange={(e) => setNewAddress({...newAddress, name: e.target.value})}
+                          onChange={(e) => setNewAddress({ ...newAddress, name: e.target.value })}
                         />
                       </div>
                     </div>
@@ -366,7 +366,7 @@ export default function ProfilePage() {
                       <Input
                         id="address1"
                         value={newAddress.address1}
-                        onChange={(e) => setNewAddress({...newAddress, address1: e.target.value})}
+                        onChange={(e) => setNewAddress({ ...newAddress, address1: e.target.value })}
                       />
                     </div>
                     <div className="space-y-2">
@@ -374,7 +374,7 @@ export default function ProfilePage() {
                       <Input
                         id="address2"
                         value={newAddress.address2}
-                        onChange={(e) => setNewAddress({...newAddress, address2: e.target.value})}
+                        onChange={(e) => setNewAddress({ ...newAddress, address2: e.target.value })}
                         placeholder="Apto, casa, etc."
                       />
                     </div>
@@ -384,7 +384,7 @@ export default function ProfilePage() {
                         <Input
                           id="city"
                           value={newAddress.city}
-                          onChange={(e) => setNewAddress({...newAddress, city: e.target.value})}
+                          onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">
@@ -392,7 +392,7 @@ export default function ProfilePage() {
                         <Input
                           id="state"
                           value={newAddress.state_code}
-                          onChange={(e) => setNewAddress({...newAddress, state_code: e.target.value})}
+                          onChange={(e) => setNewAddress({ ...newAddress, state_code: e.target.value })}
                           placeholder="SP"
                           maxLength={2}
                         />
@@ -402,7 +402,7 @@ export default function ProfilePage() {
                         <Input
                           id="zip"
                           value={newAddress.zip}
-                          onChange={(e) => setNewAddress({...newAddress, zip: e.target.value})}
+                          onChange={(e) => setNewAddress({ ...newAddress, zip: e.target.value })}
                           placeholder="00000-000"
                         />
                       </div>
@@ -412,7 +412,7 @@ export default function ProfilePage() {
                       <Input
                         id="address_phone"
                         value={newAddress.phone}
-                        onChange={(e) => setNewAddress({...newAddress, phone: e.target.value})}
+                        onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
                         placeholder="(00) 00000-0000"
                       />
                     </div>
@@ -421,7 +421,7 @@ export default function ProfilePage() {
                         type="checkbox"
                         id="is_default"
                         checked={newAddress.is_default}
-                        onChange={(e) => setNewAddress({...newAddress, is_default: e.target.checked})}
+                        onChange={(e) => setNewAddress({ ...newAddress, is_default: e.target.checked })}
                         className="rounded"
                       />
                       <Label htmlFor="is_default">Endereço padrão</Label>
@@ -570,5 +570,17 @@ export default function ProfilePage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <ProfileContent />
+    </Suspense>
   )
 }

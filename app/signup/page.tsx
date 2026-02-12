@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { SignupForm } from "@/components/auth/signup-form"
 import { getSupabaseClient } from "@/lib/supabase/client"
 import { Navbar } from "@/components/navbar"
 import { Footer } from "@/components/footer"
 
-export default function SignupPage() {
+function SignupContent() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
 
@@ -17,7 +17,7 @@ export default function SignupPage() {
       try {
         const supabase = getSupabaseClient()
         const { data: { session } } = await supabase.auth.getSession()
-        
+
         if (session) {
           // Usuário já está logado, redireciona para admin
           router.push('/admin')
@@ -46,7 +46,7 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <main className="container mx-auto px-4 py-16">
         <div className="max-w-md mx-auto">
           <SignupForm />
@@ -55,5 +55,17 @@ export default function SignupPage() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
   )
 }
