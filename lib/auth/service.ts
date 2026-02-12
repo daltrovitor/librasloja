@@ -55,9 +55,18 @@ export interface LoginHistory {
 export async function getCurrentProfile(): Promise<Profile | null> {
   try {
     const supabase = await getSupabaseServer()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-    if (!user) return null
+    if (authError) {
+      console.warn('[Auth Service] getUser error:', authError.message)
+    }
+
+    if (!user) {
+      console.log('[Auth Service] No user found in session')
+      return null
+    }
+
+    console.log('[Auth Service] User found:', user.id, user.email)
 
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -65,7 +74,73 @@ export async function getCurrentProfile(): Promise<Profile | null> {
       .eq('user_id', user.id)
       .single()
 
-    if (error || !profile) return null
+    if (error) {
+      console.error('[Auth Service] Profile fetch error:', error.message)
+
+      // Tenta recuperar via service role se o usuário existe mas a query falhou (possível erro de RLS)
+      console.log('[Auth Service] Attempting fallback to service role for profile fetch')
+      const supabaseAdmin = getSupabaseService()
+      if (supabaseAdmin) {
+        const { data: adminProfile, error: adminError } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+
+        if (!adminError && adminProfile) {
+          console.log('[Auth Service] Profile found via service role fallback')
+          return adminProfile as Profile
+        }
+
+        // Se o erro for de registro não encontrado, cria o perfil
+        if (adminError && adminError.code === 'PGRST116') {
+          console.log('[Auth Service] Profile missing. Creating a new one for user:', user.id)
+          const { data: newProfile, error: createError } = await supabaseAdmin
+            .from('profiles')
+            .insert({
+              user_id: user.id,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+              role: 'customer'
+            })
+            .select()
+            .single()
+
+          if (!createError && newProfile) {
+            console.log('[Auth Service] Profile created successfully')
+            return newProfile as Profile
+          }
+          if (createError) {
+            console.error('[Auth Service] Error creating profile:', createError.message)
+          }
+        }
+      }
+
+      return null
+    }
+
+    if (!profile) {
+      console.warn('[Auth Service] No profile record found for user:', user.id)
+
+      // Cria se estiver faltando
+      const supabaseAdmin = getSupabaseService()
+      if (supabaseAdmin) {
+        const { data: newProfile } = await supabaseAdmin
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || user.email?.split('@')[0],
+            role: 'customer'
+          })
+          .select()
+          .single()
+
+        if (newProfile) return newProfile as Profile
+      }
+
+      return null
+    }
 
     return profile as Profile
   } catch (error) {

@@ -34,41 +34,21 @@ export async function getSupabaseServer() {
   // Cast to `any` where necessary to avoid mismatches across Next.js versions.
   return createServerClient(url, anonKey, {
     cookies: {
-      get(name: string) {
+      getAll() {
+        return cookieStore.getAll()
+      },
+      setAll(cookiesToSet) {
         try {
-          const c = cookieStore.get(name)
-          return c ? c.value : null
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
         } catch {
-          return null
+          // The `setAll` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
         }
       },
-
-      set(name: string, value: string, options?: any) {
-        try {
-          cookieStore.set(name, value, options)
-        } catch {
-          // swallow errors
-        }
-      },
-
-      // Some Next.js versions expose `delete`, others `remove`/`deleteCookie`.
-      // Accept both by providing a `delete` implementation that calls the
-      // underlying API when available.
-      delete(name: string) {
-        try {
-          // @ts-ignore
-          if (typeof cookieStore.delete === 'function') {
-            // @ts-ignore
-            cookieStore.delete(name)
-          } else {
-            // Fallback: attempt to set an expired cookie
-            cookieStore.set(name, '', { maxAge: 0 })
-          }
-        } catch {
-          // ignore
-        }
-      },
-    } as any,
+    },
   })
 }
 

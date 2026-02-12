@@ -7,6 +7,8 @@ interface User {
   email: string
   full_name?: string
   role?: string
+  phone?: string
+  avatar_url?: string
 }
 
 export function useAuth() {
@@ -19,7 +21,7 @@ export function useAuth() {
       const supabase = getSupabaseClient()
       const { data, error } = await supabase
         .from('profiles')
-        .select('role, full_name')
+        .select('role, full_name, phone, avatar_url')
         .eq('user_id', userId)
         .single()
 
@@ -30,7 +32,10 @@ export function useAuth() {
           email: email,
           full_name: profile.full_name || fullName || email.split('@')[0],
           role: profile.role || 'customer',
+          phone: profile.phone,
+          avatar_url: profile.avatar_url,
         })
+
 
         // Check if role is customer, might be RLS issue for admin, verify with API
         if ((profile.role || 'customer') === 'customer') {
@@ -157,6 +162,8 @@ export function useAuth() {
               email: session.user.email || '',
               full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0],
               role,
+              phone: profile?.phone,
+              avatar_url: profile?.avatar_url,
             })
           }
         } else {
@@ -174,7 +181,7 @@ export function useAuth() {
     checkSession()
 
     const { data: { subscription } } = getSupabaseClient().auth.onAuthStateChange(
-      (event, session) => {
+      (event: any, session: any) => {
         if (event === 'SIGNED_OUT') {
           setUser(null)
           setLoading(false)

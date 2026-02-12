@@ -157,7 +157,7 @@ export function BannersManager() {
                 ))}
                 {loading && (
                     <div className="col-span-full flex justify-center py-10">
-                        <Spinner size="lg" />
+                        <Spinner className="size-8" />
                     </div>
                 )}
                 {banners.length === 0 && !loading && (
