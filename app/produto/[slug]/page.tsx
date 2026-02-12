@@ -1,7 +1,7 @@
 
 import { Metadata, ResolvingMetadata } from 'next'
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { getSupabaseService } from '@/lib/supabase/server'
 import ProductDetailsClient from './ProductDetailsClient'
 import type { Product } from '@/lib/store/types'
 
@@ -10,11 +10,9 @@ interface Props {
 }
 
 async function getProduct(slug: string): Promise<Product | null> {
-  const supabase = await createClient()
+  const supabase = getSupabaseService()
+  if (!supabase) return null
 
-  // Search by slug in the products table
-  // You might need to adjust the query based on your actual schema
-  // Assuming products have a slug column. If not, maybe use id or search by name.
   const { data, error } = await supabase
     .from('products')
     .select('*, category:categories(*), variants:product_variants(*)')

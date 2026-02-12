@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import { getSupabaseService } from '@/lib/supabase/server'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const SITE_URL = 'https://loja.libraslixas.com.br'
@@ -18,13 +18,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }))
 
     try {
-        const supabase = await createClient()
+        const supabase = getSupabaseService()
+        if (!supabase) return routes
 
         // Buscar todos os produtos
         const { data: products } = await supabase
             .from('products')
             .select('slug, updated_at')
-            .is('is_active', true) // Opcional: apenas ativos
+            .eq('is_active', true)
 
         const productEntries = (products || []).map((product) => ({
             url: `${SITE_URL}/produto/${product.slug}`,
