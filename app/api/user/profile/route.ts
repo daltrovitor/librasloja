@@ -11,7 +11,16 @@ import { z } from 'zod'
 const UpdateProfileSchema = z.object({
   full_name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').optional(),
   phone: z.string().optional(),
-  avatar_url: z.string().url('URL inválida').optional(),
+  avatar_url: z.string().optional().refine((v) => {
+    if (!v) return true
+    try {
+      // Accept only valid http/https URLs, but allow empty string (to clear avatar)
+      const u = new URL(v)
+      return u.protocol === 'http:' || u.protocol === 'https:'
+    } catch {
+      return false
+    }
+  }, { message: 'URL inválida' }),
 })
 
 // GET - Obter perfil
@@ -33,9 +42,9 @@ export async function GET(request: Request) {
 
   } catch (error) {
     console.error('[User API] Get profile error:', error)
-    
+    const message = (error instanceof Error && error.message) ? error.message : 'Falha ao obter perfil'
     return NextResponse.json(
-      { error: 'Falha ao obter perfil' },
+      { error: message },
       { status: 500 }
     )
   }
@@ -70,9 +79,9 @@ export const PUT = withCustomerAuth(async (request: Request) => {
         { status: 400 }
       )
     }
-
+    const message = (error instanceof Error && error.message) ? error.message : 'Falha ao atualizar perfil'
     return NextResponse.json(
-      { error: 'Falha ao atualizar perfil' },
+      { error: message },
       { status: 500 }
     )
   }

@@ -11,10 +11,15 @@ export async function POST(request: Request) {
         }
 
         // Usar chave de serviço para ignorar RLS e garantir leitura correta
-        const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        )
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+        if (!url || !serviceKey) {
+            console.warn('Supabase admin credentials missing for check-role. Returning fallback role customer.')
+            return NextResponse.json({ role: 'customer' })
+        }
+
+        const supabaseAdmin = createClient(url, serviceKey)
 
         const { data: profile, error } = await supabaseAdmin
             .from('profiles')

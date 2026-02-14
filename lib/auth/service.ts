@@ -281,10 +281,17 @@ export async function updateProfile(updates: Partial<Profile>) {
 
     const supabase = await getSupabaseServer()
 
+    // Normalize phone: store only digits to avoid formatting issues
+    const sanitizedUpdates = { ...updates } as any
+    if (sanitizedUpdates.phone && typeof sanitizedUpdates.phone === 'string') {
+      const digits = sanitizedUpdates.phone.replace(/\D/g, '')
+      sanitizedUpdates.phone = digits
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .update({
-        ...updates,
+        ...sanitizedUpdates,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', profile.user_id)
@@ -317,7 +324,30 @@ export async function getCustomerAddresses(): Promise<CustomerAddress[]> {
       .order('is_default', { ascending: false })
       .order('created_at', { ascending: false })
 
-    if (error) throw error
+    if (error) {
+      // If table is missing in the current role's schema cache, try using the service role client
+      if ((error as any)?.code === 'PGRST205') {
+        console.warn("PostgREST reported missing table 'customer_addresses' for current role — attempting service-role fallback")
+        const supabaseAdmin = getSupabaseService()
+        if (supabaseAdmin) {
+          const { data: adminData, error: adminError } = await supabaseAdmin
+            .from('customer_addresses')
+            .select('*')
+            .eq('user_id', profile.user_id)
+            .order('is_default', { ascending: false })
+            .order('created_at', { ascending: false })
+
+          if (!adminError) {
+            console.log('[Auth] customer_addresses found via service role fallback')
+            return adminData as CustomerAddress[]
+          }
+          console.error('[Auth] Service-role fetch also failed for customer_addresses:', adminError)
+        }
+
+        throw new Error("Tabela 'customer_addresses' não encontrada para o role atual. Se você aplicou as migrations, verifique as policies/RLS ou reinicie o serviço PostgREST no Supabase.")
+      }
+      throw error
+    }
 
     return data as CustomerAddress[]
   } catch (error) {
@@ -355,7 +385,32 @@ export async function upsertAddress(address: Omit<CustomerAddress, 'id' | 'user_
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      if ((error as any)?.code === 'PGRST205') {
+        console.warn("PostgREST reported missing table 'customer_addresses' on upsert — trying service-role fallback")
+        const supabaseAdmin = getSupabaseService()
+        if (supabaseAdmin) {
+          const { data: adminData, error: adminError } = await supabaseAdmin
+            .from('customer_addresses')
+            .upsert({
+              ...address,
+              user_id: profile.user_id,
+              updated_at: new Date().toISOString(),
+            })
+            .select()
+            .single()
+
+          if (!adminError) {
+            console.log('[Auth] upsert customer_addresses via service role succeeded')
+            return adminData as CustomerAddress
+          }
+          console.error('[Auth] Service-role upsert also failed for customer_addresses:', adminError)
+        }
+
+        throw new Error("Tabela 'customer_addresses' não encontrada para o role atual. Se você aplicou as migrations, verifique as policies/RLS ou reinicie o serviço PostgREST no Supabase.")
+      }
+      throw error
+    }
 
     return data as CustomerAddress
   } catch (error) {
@@ -380,7 +435,28 @@ export async function deleteAddress(addressId: string) {
       .eq('id', addressId)
       .eq('user_id', profile.user_id)
 
-    if (error) throw error
+    if (error) {
+      if ((error as any)?.code === 'PGRST205') {
+        console.warn("PostgREST reported missing table 'customer_addresses' on delete — trying service-role fallback")
+        const supabaseAdmin = getSupabaseService()
+        if (supabaseAdmin) {
+          const { error: adminError } = await supabaseAdmin
+            .from('customer_addresses')
+            .delete()
+            .eq('id', addressId)
+            .eq('user_id', profile.user_id)
+
+          if (!adminError) {
+            console.log('[Auth] delete customer_addresses via service role succeeded')
+            return true
+          }
+          console.error('[Auth] Service-role delete also failed for customer_addresses:', adminError)
+        }
+
+        throw new Error("Tabela 'customer_addresses' não encontrada para o role atual. Se você aplicou as migrations, verifique as policies/RLS ou reinicie o serviço PostgREST no Supabase.")
+      }
+      throw error
+    }
 
     return true
   } catch (error) {

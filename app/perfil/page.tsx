@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { User, Package, MapPin, LogOut, Edit, Save } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { toast } from "sonner"
+import { formatPhone, formatCEP } from '@/components/ui/inputMasks'
 
 interface CustomerAddress {
   id: string
@@ -47,6 +48,7 @@ function ProfileContent() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [isAddingAddress, setIsAddingAddress] = useState(false)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
   const [orders, setOrders] = useState<Order[]>([])
 
@@ -74,7 +76,7 @@ function ProfileContent() {
     if (user) {
       setProfileData({
         full_name: user.full_name || '',
-        phone: (user as any).phone || '',
+        phone: formatPhone((user as any).phone || ''),
         avatar_url: (user as any).avatar_url || ''
       })
       fetchAddresses()
@@ -82,6 +84,42 @@ function ProfileContent() {
     }
     setLoading(false)
   }, [user])
+
+  // Auto-fill newAddress fields when CEP is entered
+  useEffect(() => {
+    const cep = (newAddress.zip || '').replace(/\D/g, '')
+    if (cep.length !== 8) return
+
+    const fetchAddress = async () => {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`)
+        if (!res.ok) {
+          toast.error('Erro ao buscar CEP')
+          return
+        }
+        const data = await res.json()
+        if (data.erro) {
+          toast.error('CEP não encontrado')
+          return
+        }
+
+        setNewAddress(prev => ({
+          ...prev,
+          address1: data.logradouro || prev.address1,
+          city: data.localidade || prev.city,
+          state_code: data.uf || prev.state_code,
+          address2: data.complemento || prev.address2,
+        }))
+
+        toast.success('Endereço encontrado!')
+      } catch (e) {
+        console.error('Erro ao buscar CEP (perfil):', e)
+        toast.error('Erro ao buscar CEP')
+      }
+    }
+
+    fetchAddress()
+  }, [newAddress.zip])
 
   const fetchAddresses = async () => {
     try {
@@ -131,12 +169,24 @@ function ProfileContent() {
   }
 
   const handleAddAddress = async () => {
+    // Prevent submission unless CEP is filled
+    const cepDigits = (newAddress.zip || '').replace(/\D/g, '')
+    if (cepDigits.length !== 8) {
+      toast.error('Informe o CEP válido antes de adicionar o endereço')
+      return
+    }
+
+    setIsAddingAddress(true)
     try {
       const res = await fetch('/api/user/addresses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newAddress)
       })
+
+      const payload = await res.text()
+      let body: any = null
+      try { body = JSON.parse(payload) } catch { body = payload }
 
       if (res.ok) {
         toast.success('Endereço adicionado com sucesso!')
@@ -153,11 +203,26 @@ function ProfileContent() {
         })
         fetchAddresses()
       } else {
-        throw new Error('Falha ao adicionar endereço')
+        // Specific handling when DB table missing
+        const errorMessage = (body && body.error) ? String(body.error) : String(payload || 'Erro desconhecido')
+        if (errorMessage.includes('customer_addresses') || errorMessage.includes('Tabela')) {
+          toast.error('Erro no servidor: tabela de endereços ausente. Rode as migrations (scripts/09-create-auth-tables.sql) no seu banco Supabase.')
+          console.error('Server table missing error:', errorMessage)
+        } else if (body && body.details) {
+          const messages = (body.details || []).map((d: any) => `${d.field}: ${d.message}`).join('\n')
+          toast.error(`Falha ao adicionar endereço:\n${messages}`)
+          console.warn('Address API validation details:', body.details)
+        } else if (body && body.error) {
+          toast.error(String(body.error))
+        } else {
+          toast.error('Falha ao adicionar endereço')
+        }
       }
     } catch (error) {
       console.error('Add address error:', error)
       toast.error('Falha ao adicionar endereço')
+    } finally {
+      setIsAddingAddress(false)
     }
   }
 
@@ -299,15 +364,11 @@ function ProfileContent() {
                       value={profileData.phone}
                       onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
                       placeholder="(00) 00000-0000"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="avatar_url">URL do Avatar</Label>
-                    <Input
-                      id="avatar_url"
-                      value={profileData.avatar_url}
-                      onChange={(e) => setProfileData({ ...profileData, avatar_url: e.target.value })}
-                      placeholder="https://exemplo.com/avatar.jpg"
+                      onInput={(e) => {
+                        const input = e.currentTarget as HTMLInputElement
+                        input.value = formatPhone(input.value)
+                        setProfileData({ ...profileData, phone: input.value })
+                      }}
                     />
                   </div>
                   <Button onClick={handleUpdateProfile} disabled={saving}>
@@ -402,8 +463,15 @@ function ProfileContent() {
                         <Input
                           id="zip"
                           value={newAddress.zip}
-                          onChange={(e) => setNewAddress({ ...newAddress, zip: e.target.value })}
+                          onChange={(e) => setNewAddress(prev => ({ ...prev, zip: e.target.value }))}
                           placeholder="00000-000"
+                          onInput={(e) => {
+                            const input = e.currentTarget as HTMLInputElement
+                            input.value = formatCEP(input.value)
+                            setNewAddress(prev => ({ ...prev, zip: input.value }))
+                            // debug
+                            console.debug('perfil: zip input changed ->', input.value)
+                          }}
                         />
                       </div>
                     </div>
@@ -412,8 +480,13 @@ function ProfileContent() {
                       <Input
                         id="address_phone"
                         value={newAddress.phone}
-                        onChange={(e) => setNewAddress({ ...newAddress, phone: e.target.value })}
+                        onChange={(e) => setNewAddress(prev => ({ ...prev, phone: e.target.value }))}
                         placeholder="(00) 00000-0000"
+                        onInput={(e) => {
+                          const input = e.currentTarget as HTMLInputElement
+                          input.value = formatPhone(input.value)
+                          setNewAddress(prev => ({ ...prev, phone: input.value }))
+                        }}
                       />
                     </div>
                     <div className="flex items-center space-x-2">
@@ -421,14 +494,26 @@ function ProfileContent() {
                         type="checkbox"
                         id="is_default"
                         checked={newAddress.is_default}
-                        onChange={(e) => setNewAddress({ ...newAddress, is_default: e.target.checked })}
+                        onChange={(e) => setNewAddress(prev => ({ ...prev, is_default: e.target.checked }))}
                         className="rounded"
                       />
                       <Label htmlFor="is_default">Endereço padrão</Label>
                     </div>
-                    <Button onClick={handleAddAddress}>
-                      Adicionar Endereço
-                    </Button>
+                    <div className="flex items-center gap-4">
+                      <Button onClick={handleAddAddress} disabled={isAddingAddress || ((newAddress.zip || '').replace(/\D/g,'').length !== 8)}>
+                        {isAddingAddress ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            Adicionando...
+                          </>
+                        ) : (
+                          'Adicionar Endereço'
+                        )}
+                      </Button>
+                      {((newAddress.zip || '').replace(/\D/g,'').length !== 8) && (
+                        <span className="text-sm text-muted-foreground">Digite o CEP primeiro para preencher o endereço</span>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
 

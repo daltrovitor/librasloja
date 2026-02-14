@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { useCart } from "@/hooks/use-shopping-cart"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
+import { formatPhone, formatCEP } from "@/components/ui/inputMasks"
 
 const formatPrice = (p: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -233,17 +234,30 @@ export function CheckoutForm() {
                         {errors.email && <span className="text-xs text-red-500">{errors.email.message}</span>}
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="phone">Telefone</Label>
-                        <Input id="phone" {...register("phone")} placeholder="(00) 00000-0000" className={errors.phone ? "border-red-500" : ""} />
-                        {errors.phone && <span className="text-xs text-red-500">{errors.phone.message}</span>}
-                    </div>
+                                        <div className="space-y-2">
+                                                <Label htmlFor="phone">Telefone</Label>
+                                                <Input id="phone" {...register("phone")} placeholder="(00) 00000-0000" className={errors.phone ? "border-red-500" : ""}
+                                                    onInput={(e) => {
+                                                        const input = e.currentTarget as HTMLInputElement
+                                                        const pos = input.selectionStart || input.value.length
+                                                        input.value = formatPhone(input.value)
+                                                        // try to restore caret - set to end if not available
+                                                        input.setSelectionRange(input.value.length, input.value.length)
+                                                    }}
+                                                />
+                                                {errors.phone && <span className="text-xs text-red-500">{errors.phone.message}</span>}
+                                        </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="cep">CEP</Label>
-                        <Input id="cep" {...register("cep")} placeholder="00000-000" className={errors.cep ? "border-red-500" : ""} />
-                        {errors.cep && <span className="text-xs text-red-500">{errors.cep.message}</span>}
-                    </div>
+                                        <div className="space-y-2">
+                                                <Label htmlFor="cep">CEP</Label>
+                                                <Input id="cep" {...register("cep")} placeholder="00000-000" className={errors.cep ? "border-red-500" : ""}
+                                                    onInput={(e) => {
+                                                        const input = e.currentTarget as HTMLInputElement
+                                                        input.value = formatCEP(input.value)
+                                                    }}
+                                                />
+                                                {errors.cep && <span className="text-xs text-red-500">{errors.cep.message}</span>}
+                                        </div>
 
                     <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="address">Endereço</Label>

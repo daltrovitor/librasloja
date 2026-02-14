@@ -131,7 +131,7 @@ export function useAuth() {
           // Profile fetch logic inline to ensure control flow
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('role, full_name')
+            .select('role, full_name, phone, avatar_url')
             .eq('user_id', session.user.id)
             .single()
 

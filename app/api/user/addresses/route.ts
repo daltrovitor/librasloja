@@ -33,9 +33,9 @@ export const GET = withCustomerAuth(async (request: Request) => {
 
   } catch (error) {
     console.error('[User API] Get addresses error:', error)
-    
+    const message = (error instanceof Error && error.message) ? error.message : 'Falha ao obter endereços'
     return NextResponse.json(
-      { error: 'Falha ao obter endereços' },
+      { error: message },
       { status: 500 }
     )
   }
@@ -70,9 +70,9 @@ export const POST = withCustomerAuth(async (request: Request) => {
         { status: 400 }
       )
     }
-
+    const message = (error instanceof Error && error.message) ? error.message : 'Falha ao criar endereço'
     return NextResponse.json(
-      { error: 'Falha ao criar endereço' },
+      { error: message },
       { status: 500 }
     )
   }

@@ -4,7 +4,7 @@
 -- 1. PERFIS DE USUÁRIO
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
   phone TEXT,
@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS profiles (
 CREATE TABLE IF NOT EXISTS customer_addresses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES profiles(user_id) ON DELETE CASCADE,
-  type TEXT DEFAULT 'shipping' CHECK (type IN ('shipping', 'billing')),
+  -- expanded types and allow a free-form label
+  type TEXT DEFAULT 'shipping' CHECK (type IN ('shipping', 'billing', 'home', 'work', 'other', 'pickup')),
+  label TEXT, -- optional custom label (e.g., 'Casa', 'Trabalho')
   name TEXT NOT NULL,
   address1 TEXT NOT NULL,
   address2 TEXT,
@@ -28,6 +30,7 @@ CREATE TABLE IF NOT EXISTS customer_addresses (
   country_code TEXT DEFAULT 'BR',
   zip TEXT NOT NULL,
   phone TEXT,
+  metadata JSONB, -- optional extra data (delivery instructions, coordinates, etc.)
   is_default BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -57,7 +60,8 @@ CREATE TABLE IF NOT EXISTS login_history (
 );
 
 -- Indexes para performance
-CREATE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
+-- Make sure user_id is unique so other tables can reference it safely
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_user_id ON profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON profiles(email);
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON profiles(role);
 CREATE INDEX IF NOT EXISTS idx_customer_addresses_user_id ON customer_addresses(user_id);
@@ -75,20 +79,16 @@ ALTER TABLE login_history ENABLE ROW LEVEL SECURITY;
 -- Policies para profiles
 CREATE POLICY "Users can view own profile" ON profiles FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own profile" ON profiles FOR UPDATE USING (auth.uid() = user_id);
+-- Avoid querying the same table inside a policy (causes recursion).
+-- Use the JWT claim `role` to allow admin/manager access instead.
 CREATE POLICY "Admins can view all profiles" ON profiles FOR SELECT USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE user_id = auth.uid() AND role IN ('admin', 'manager')
-  )
+  current_setting('jwt.claims.role', true) IN ('admin','manager')
 );
 
 -- Policies para customer_addresses
 CREATE POLICY "Users can manage own addresses" ON customer_addresses FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Admins can view all addresses" ON customer_addresses FOR SELECT USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE user_id = auth.uid() AND role IN ('admin', 'manager')
-  )
+  current_setting('jwt.claims.role', true) IN ('admin','manager')
 );
 
 -- Policies para user_sessions
@@ -98,10 +98,7 @@ CREATE POLICY "Users can delete own sessions" ON user_sessions FOR DELETE USING 
 -- Policies para login_history
 CREATE POLICY "Users can view own login history" ON login_history FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Admins can view all login history" ON login_history FOR SELECT USING (
-  EXISTS (
-    SELECT 1 FROM profiles 
-    WHERE user_id = auth.uid() AND role IN ('admin', 'manager')
-  )
+  current_setting('jwt.claims.role', true) IN ('admin','manager')
 );
 
 -- Function para criar profile automaticamente após signup
